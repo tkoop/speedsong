@@ -20,6 +20,11 @@ It will create a file called out.mp4
 # Command line arguments
 
 ```
---notes "A,B,C,D,E,F,G"
+--notes "A,B2,C2,D2,3E0.5,5F,5G2"
 ```
-Or "-n".  You must pass in notes, so Speedsong knows how to speed up the video.  The notes are comma-separated.  The octave of the note, according to Scientific Pitch Notation, prescedes the note name.  The default is 4.  Middle would be "4C", or just "C".  One note lower would be "3B".
+Or "-n".  You must pass in notes, so Speedsong knows how to speed up the video.  The notes are comma-separated.  The octave of the note, according to Scientific Pitch Notation, prescedes the note name.  The default is 4.  Middle would be "4C", or just "C".  One note lower would be "3B".  This notation doesn't know or care about quarter notes or eighth notes.  It only cares about beats.  The number of beats per note is specified after the letter.  If you want a beat to be quarter notes, then a half note is "C2" and a quarter note is "C1". One is the default number of beats, so you can leave it out.  An eighth note would be "C0.5".  You can set the tempo (as beats per minute), with the letter "T" (as if it were a note) followed by the number of beats per minute.  "T60" would set each beat to last one second.  The default is 100.
+
+```
+--notesfile "notes.txt"
+```
+Or "-nf".  Instead of specifying the notes in the command line, you can store them in a file and specify the file name. 
