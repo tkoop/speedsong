@@ -107,7 +107,12 @@ async function merge(ext, srcFolder) {
         filterList += `[${i}:v] [${i}:a] `
     }
 
-    var mergeCommand = `ffmpeg -v 0 ${fileList} -filter_complex "${filterList} concat=n=${slices.length}:v=1:a=1 [v] [a]" -map "[v]" -map "[a]" merged.${ext} -y`
+    var outFile = "out.mp4"
+    if (argv["outfile"]) {
+        outFile = argv["outfile"]
+    }
+
+    var mergeCommand = `ffmpeg -v 0 ${fileList} -filter_complex "${filterList} concat=n=${slices.length}:v=1:a=1 [v] [a]" -map "[v]" -map "[a]" ${outFile} -y`
 
     await run(mergeCommand)
 }
@@ -146,7 +151,7 @@ function parseSlicesFromString(notes) {
     var tempo = 100
     var runningTime = 0
 
-    const regex = /([01-9]*)([a-zA-Z])([b#]?)([01-9\.]+)/gm
+    const regex = /([01-9]*)([a-zA-Z])([b#]?)([01-9\.]*)/gm
 
     bits.forEach(function(bit) {
         let m = regex.exec(bit)
@@ -161,7 +166,6 @@ function parseSlicesFromString(notes) {
         var note = m[2].toUpperCase()
         var accidental = m[3]
         var beats = m[4]
-        console.log(`Octave ${octave} accidenal ${accidental} note ${note} beats ${beats}`)
         if (beats == "") beats = 1
 
         if (note == "T") {
@@ -214,8 +218,13 @@ async function main() {
     await(run("mkdir videoFast"))
     await(run("mkdir videoText"))
 
+    var inputFile = "in.mp4"
+    if (argv["infile"]) {
+        inputFile = argv["infile"]
+    }
+
     for(var i=0; i<slices.length; i++) {
-        await makeSlice('raw.mp4', i, "mp4", "videoSlices")
+        await makeSlice(inputFile, i, "mp4", "videoSlices")
     }
 
     for(var i=0; i<slices.length; i++) {

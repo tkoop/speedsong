@@ -28,3 +28,13 @@ Or "-n".  You must pass in notes, so Speedsong knows how to speed up the video. 
 --notesfile "notes.txt"
 ```
 Or "-nf".  Instead of specifying the notes in the command line, you can store them in a file and specify the file name. 
+
+```
+--infile "in.mp4"
+```
+The video file to process.  It defaults to "in.mp4".
+
+```
+--outfile "out.mp4"
+```
+The video file to produce.  It defaults to "out.mp4".
