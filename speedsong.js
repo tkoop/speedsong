@@ -85,15 +85,33 @@ async function makeSlice(filename, index, ext, destFolder) {
 
 
 async function speedUp(index, ext, srcFolder, destFolder) {
-    var speed = slices[index].multiplier
-    var displaySpeed = Math.round(speed * 100) / 100.0 + "x"
-    var inverseSpeed = 1.0 / speed
+    var type = slices[index].type
 
-    command = `ffmpeg -v 0 -i ${srcFolder}/slice${index}.${ext} -filter_complex "[0:v]setpts=${inverseSpeed}*PTS[v];[0:a]asetrate=44100*${speed}[a]" -map "[v]" -map "[a]" ${destFolder[0]}/fast${index}.${ext} -y`
-    await run(command)
+    if (type == "note") {
+        var speed = slices[index].multiplier
+        var displaySpeed = Math.round(speed * 100) / 100.0 + "x"
+        var inverseSpeed = 1.0 / speed
 
-    command = `ffmpeg -v 0 -i ${destFolder[0]}/fast${index}.${ext} -vf drawtext="fontfile=/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf: text='${displaySpeed}': fontcolor=white: fontsize=34: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${destFolder[1]}/text${index}.${ext} -y`
-    await run(command)
+        command = `ffmpeg -v 0 -i ${srcFolder}/slice${index}.${ext} -filter_complex "[0:v]setpts=${inverseSpeed}*PTS[v];[0:a]asetrate=44100*${speed}[a]" -map "[v]" -map "[a]" ${destFolder[0]}/fast${index}.${ext} -y`
+        await run(command)
+
+        command = `ffmpeg -v 0 -i ${destFolder[0]}/fast${index}.${ext} -vf drawtext="fontfile=/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf: text='${displaySpeed}': fontcolor=white: fontsize=34: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${destFolder[1]}/text${index}.${ext} -y`
+        await run(command)
+    }
+
+
+    if (type == "rest") {
+        command = `ffmpeg -v 0 -i ${srcFolder}/slice${index}.${ext} -af volume=0 ${destFolder[0]}/fast${index}.${ext} -y`
+        await run(command)
+
+        command = `ffmpeg -v 0 -i ${destFolder[0]}/fast${index}.${ext} -vf drawtext="fontfile=/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf: text='mute': fontcolor=white: fontsize=34: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${destFolder[1]}/text${index}.${ext} -y`
+        await run(command)
+    }
+
+    if (type == "nothing") {
+        command = `cp ${srcFolder}/slice${index}.${ext} ${destFolder[1]}/text${index}.${ext}`
+        await run(command)
+    }
 
 }
 
@@ -172,11 +190,23 @@ function parseSlicesFromString(notes) {
             tempo = beats   // in this case, the number is not the beat length, but the tempo in beats per minute
         }
 
+        if (note == "R") {
+            var duration = 60.0 / tempo * beats
+            slices.push({start:runningTime, duration:duration, type:"rest"})
+            runningTime += duration
+        }
+
+        if (note == "N") {
+            var duration = parseFloat(beats)
+            slices.push({start:runningTime, duration:duration, type:"nothing"})
+            runningTime += duration
+        }
+
         if (note >= "A" && note <= "G") {
             var multiplier = getMultiplier(octave, note, accidental)
             var duration = 60.0 / tempo * beats * multiplier
 
-            slices.push({multiplier: multiplier, start:runningTime, duration:duration})
+            slices.push({multiplier: multiplier, start:runningTime, duration:duration, type:"note"})
 
             runningTime += duration
         }
@@ -249,7 +279,9 @@ main()
 
 function run(command) {
     return new Promise((resolve, reject) => {
-        console.log("Running command: " + command);
+        if (argv["showcommands"]) {
+            console.log("Running command: " + command);
+        }
 
         exec(command, (error, stdout, stderr) => {
             if (error) {
