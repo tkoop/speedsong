@@ -161,7 +161,8 @@ function getMultiplier(octave, note, accidental) {
 
 
 function parseSlicesFromString(notes) {
-    console.log("parsing notes: " + notes);
+    notes = "" + notes;
+    console.log("Parsing notes from: " + notes);
 
     slices = []
 
@@ -222,12 +223,26 @@ function parseSlices() {
         parseSlicesFromString(argv["n"])
     }
     if (argv["notesfile"]) {
-        const notes = fs.readFileSync(argv["notesfile"])
-        parseSlicesFromString(notes)
+        if (fs.existsSync(argv["notesfile"])) {
+            const notes = fs.readFileSync(argv["notesfile"])
+            parseSlicesFromString(notes)
+        } else {
+            console.log(`File ${argv["nf"]} not found.`)
+        }
     }
     if (argv["nf"]) {
-        const notes = fs.readFileSync(argv["nf"])
-        parseSlicesFromString(notes)
+        if (fs.existsSync(argv["nf"])) {
+            const notes = fs.readFileSync(argv["nf"])
+            parseSlicesFromString(notes)
+        } else {
+            console.log(`File ${argv["nf"]} not found.`)
+        }
+    }
+    if (!argv["notes"] && !argv["n"] && !argv["notesfile"] && !argv["nf"]) {
+        if (fs.existsSync("notes.txt")) {
+            const notes = fs.readFileSync("notes.txt")
+            parseSlicesFromString(notes)
+        }
     }
 }
 
@@ -239,8 +254,20 @@ async function main() {
         return
     }
 
-    if (argv["debug"]) {
+    if (argv["analyze"]) {
         console.log(slices)
+        var totalStretchedDuration = 0;
+        var totalFinalDuration = 0;
+        slices.forEach(function(item) {
+            totalStretchedDuration += item.duration
+            if (item.multiplier && item.multiplier != 0) {
+                totalFinalDuration += item.duration / item.multiplier
+            } else {
+                totalFinalDuration += item.duration
+            }
+        })
+        console.log("Total video in duration: " + totalStretchedDuration)
+        console.log("Total video out duration: " + totalFinalDuration)
         return
     }
 

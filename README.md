@@ -36,7 +36,7 @@ This stands for "nothing."  Instead of giving it a number of beats, you give it 
 ```
 --notesfile "notes.txt"
 ```
-Or "-nf".  Instead of specifying the notes in the command line, you can store them in a file and specify the file name. 
+Or "-nf".  Instead of specifying the notes in the command line, you can store them in a file and specify the file name.  If no notes or notesfile was specified, it defauls to a file called "notes.txt"
 
 ```
 --infile "in.mp4"
@@ -57,3 +57,9 @@ Shows the commands its running.  Used for debugging.
 --nocleanup
 ```
 Doesn't delete the directories and temporary files it creates when its done.  Used for debugging.
+
+```
+--analyze
+```
+Don't run anything.  Just look at the notes and spit out an analysis of them.  This is useful in case you want to know how long your video should be.
+
