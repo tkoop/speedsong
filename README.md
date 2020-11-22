@@ -63,3 +63,22 @@ Doesn't delete the directories and temporary files it creates when its done.  Us
 ```
 Don't run anything.  Just look at the notes and spit out an analysis of them.  This is useful in case you want to know how long your video should be.
 
+```
+--trialrun
+```
+Don't run anything, but display the commands we would run.
+
+
+```
+--fontsize
+```
+The size of the font used on the text overlay.  Defaults to 170.
+
+
+```
+--fontfile
+```
+The font file to use for the text overlay.  Defaults to /usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf
+
+
+
