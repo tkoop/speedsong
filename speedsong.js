@@ -10,55 +10,70 @@ const { exec } = require("child_process")
 const { runInContext } = require("vm")
 
 
-async function makeSlice(filename, index, ext, destFolder) {
+async function processSlice(filename, index, ext, destFolders) {
     var start = slices[index].start
     var duration = slices[index].duration
     var type = slices[index].type
+    var text = slices[index].text
+
+
+    var fontSize = argv["fontsize"] || "170"
+    if (argv["fontfile"]) {
+        var fontfile = "fontfile="+argv["fontfile"]+": "
+    } else {
+        var fontfile = "fontfile=/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf: "
+    }
+
+
+    // slice up initial file
 
     if (type == 'rest') {
         // use a still image instead of video
-        var command = `ffmpeg -v 0 -ss ${start} -i ${filename} -vframes 1 -f image2 ${destFolder}/slice${index}.jpg -y`
+        var command = `ffmpeg -v 0 -ss ${start} -i ${filename} -vframes 1 -f image2 ${destFolders[0]}/slice${index}.jpg -y`
+        await run(command)
+        confirmFile(`${destFolders[0]}/slice${index}.jpg`, "Didn't slice rest image.", command)
     } else {
-        var command = `ffmpeg -v 0 -ss ${start} -i ${filename} -to ${duration} -async 1 ${destFolder}/slice${index}.${ext} -y`
+        var command = `ffmpeg -v 0 -ss ${start} -i ${filename} -to ${duration} -async 1 ${destFolders[0]}/slice${index}.${ext} -y`
+        await run(command)
+        confirmFile(`${destFolders[0]}/slice${index}.${ext}`, "Didn't slice video.", command)
     }
 
-    await run(command)
-}
 
 
-async function speedUp(index, ext, srcFolder, destFolder) {
-    var type = slices[index].type
 
     if (type == "note") {
         var speed = slices[index].multiplier
-        var displaySpeed = Math.round(speed * 100) / 100.0 + "x"
+        var displaySpeed = text || Math.round(speed * 100) / 100.0 + "x"
         var inverseSpeed = 1.0 / speed
 
-        command = `ffmpeg -v 0 -i ${srcFolder}/slice${index}.${ext} -filter_complex "[0:v]setpts=${inverseSpeed}*PTS[v];[0:a]asetrate=${bitRate}*${speed}[a]" -map "[v]" -map "[a]" ${destFolder[0]}/fast${index}.${ext} -y`
+        command = `ffmpeg -v 0 -i ${destFolders[0]}/slice${index}.${ext} -filter_complex "[0:v]setpts=${inverseSpeed}*PTS[v];[0:a]asetrate=${bitRate}*${speed}[a]" -map "[v]" -map "[a]" ${destFolders[1]}/fast${index}.${ext} -y`
         await run(command)
-
-        var fontSize = argv["fontsize"] || "170"
-        if (argv["fontfile"]) {
-            var fontfile = "fontfile="+argv["fontfile"]+": "
-        } else {
-            var fontfile = "fontfile=/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf: "
-        }
+        confirmFile(`${destFolders[1]}/fast${index}.${ext}`, "Didn't speed up note.", command)
  
-        command = `ffmpeg -v 0 -i ${destFolder[0]}/fast${index}.${ext} -vf drawtext="${fontfile} text='${displaySpeed}': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${destFolder[1]}/text${index}.${ext} -y`
+        command = `ffmpeg -v 0 -i ${destFolders[1]}/fast${index}.${ext} -vf drawtext="${fontfile} text='${displaySpeed}': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${destFolders[2]}/text${index}.${ext} -y`
         await run(command)
+        confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't add text to note.", command)
     }
 
     if (type == "nothing") {
-        command = `cp ${srcFolder}/slice${index}.${ext} ${destFolder[1]}/text${index}.${ext}`
-        await run(command)
+        if (text == null) {
+            command = `cp ${destFolders[0]}/slice${index}.${ext} ${destFolders[2]}/text${index}.${ext}`
+            await run(command)
+            confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't copy nothing.", command)
+        } else {
+            command = `ffmpeg -v 0 -i ${destFolders[0]}/slice${index}.${ext} -vf drawtext="${fontfile} text='${text}': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${destFolders[2]}/text${index}.${ext} -y`
+            await run(command)
+            confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't add text to nothing.", command)
+        }
     }
 
 
     if (type == "rest") {
         var duration = slices[index].duration
 
-        command = `ffmpeg -loop 1 -i ${srcFolder}/slice${index}.jpg -f lavfi -i anullsrc -c:v copy -c:a aac -shortest -t ${duration} ${destFolder[0]}/fast${index}.${ext} -y`
+        command = `ffmpeg -loop 1 -i ${destFolders[0]}/slice${index}.jpg -f lavfi -i anullsrc -c:v copy -c:a aac -shortest -t ${duration} ${destFolders[1]}/fast${index}.${ext} -y`
         await run(command)
+        confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't add silence to rest.", command)
 
         var fontSize = argv["fontsize"] || "170"
         if (argv["fontfile"]) {
@@ -66,12 +81,22 @@ async function speedUp(index, ext, srcFolder, destFolder) {
         } else {
             var fontfile = "fontfile=/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf: "
         }
- 
-        command = `ffmpeg -v 0 -i ${destFolder[0]}/fast${index}.${ext} -vf drawtext="${fontfile} text='Pause': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${destFolder[1]}/text${index}.${ext} -y`
+
+        if (text == null) {
+            text = "Pause"
+        } 
+        
+        command = `ffmpeg -v 0 -i ${destFolders[1]}/fast${index}.${ext} -vf drawtext="${fontfile} text='${text}': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${destFolders[2]}/text${index}.${ext} -y`
         await run(command)
+        confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't add text to rest.", command)
     }
 
 }
+
+
+//async function speedUp(index, ext, srcFolder, destFolder) {
+
+// }
 
 
 async function merge(ext, srcFolder) {
@@ -91,6 +116,9 @@ async function merge(ext, srcFolder) {
     var mergeCommand = `ffmpeg -v 0 ${fileList} -filter_complex "${filterList} concat=n=${slices.length}:v=1:a=1 [v] [a]" -map "[v]" -map "[a]" ${outFile} -y`
 
     await run(mergeCommand)
+    confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't merge files.", mergeCommand)
+
+    console.log("We're all done.  See the file " + outFile)
 }
 
 function getMultiplier(octave, note, accidental) {
@@ -127,7 +155,7 @@ function parseSlicesFromString(notes) {
     var tempo = 100
     var runningTime = 0
 
-    const regex = /([01-9]*)([a-zA-Z])([b#]?)([01-9\.]*)/gm
+    const regex = /([01-9]*)([a-zA-Z])([b#]?)([01-9\.]*)(?:'([^,]*)')?/gm
 
     bits.forEach(function(bit) {
         let m = regex.exec(bit)
@@ -143,20 +171,24 @@ function parseSlicesFromString(notes) {
         var accidental = m[3]
         var beats = m[4]
         if (beats == "") beats = 1
+        var text = m[5] || null
 
         if (note == "T") {
-            tempo = beats   // in this case, the number is not the beat length, but the tempo in beats per minute
+            tempo = parseFloat(beats)   // in this case, the number is not the beat length, but the tempo in beats per minute
         }
 
         if (note == "R") {
             var duration = 60.0 / tempo * beats
-            slices.push({start:runningTime, duration:duration, type:"rest"})
-        //    runningTime += duration   // running time doesn't increase, because we will "pause" instead of "mute"
+            slices.push({start:runningTime, duration:duration, type:"rest", text:text})
+        }
+
+        if (note == "S") {
+            runningTime += parseFloat(beats)    // beats is actually number of seconds
         }
 
         if (note == "N") {
             var duration = parseFloat(beats)    // beats is actually number of seconds
-            slices.push({start:runningTime, duration:duration, type:"nothing"})
+            slices.push({start:runningTime, duration:duration, type:"nothing", text:text})
             runningTime += duration
         }
 
@@ -164,7 +196,7 @@ function parseSlicesFromString(notes) {
             var multiplier = getMultiplier(octave, note, accidental)
             var duration = 60.0 / tempo * beats * multiplier
 
-            slices.push({multiplier: multiplier, start:runningTime, duration:duration, type:"note", tempo:tempo, beats:beats})
+            slices.push({multiplier: multiplier, start:runningTime, duration:duration, type:"note", tempo:tempo, beats:parseFloat(beats), text:text})
 
             runningTime += duration
         }
@@ -200,6 +232,18 @@ function parseSlices() {
             const notes = fs.readFileSync("notes.txt")
             parseSlicesFromString(notes)
         }
+    }
+}
+
+function confirmFile(filename, errorMessage, command) {
+    if (fs.existsSync(filename)) {
+        return true
+    } else {
+        console.log("File not found: " + filename)
+        console.log("Error message: " + errorMessage)
+        console.log("Command: " + command)
+        process.exit()
+        return false
     }
 }
 
@@ -245,6 +289,10 @@ async function main() {
         return
     }
 
+    await run("rm -rf videoSlices")
+    await run("rm -rf videoFast")
+    await run("rm -rf videoText")    
+
     await run("mkdir videoSlices")
     await run("mkdir videoFast")
     await run("mkdir videoText")
@@ -258,11 +306,7 @@ async function main() {
     await detectBitRate(inputFile)
 
     for(var i=0; i<slices.length; i++) {
-        await makeSlice(inputFile, i, "mp4", "videoSlices")
-    }
-
-    for(var i=0; i<slices.length; i++) {
-        await speedUp(i, "mp4", "videoSlices", ["videoFast", "videoText"])
+        await processSlice(inputFile, i, "mp4", ["videoSlices", "videoFast", "videoText"])
     }
         
     await merge("mp4", "videoText")
@@ -274,6 +318,8 @@ async function main() {
         await(run("rm -rf videoFast"))
         await(run("rm -rf videoText"))    
     }
+
+
 }
     
 

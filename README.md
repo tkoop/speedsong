@@ -20,7 +20,7 @@ It will create a file called out.mp4
 # Command line arguments
 
 ```
---notes "A,B2,C2,D2,3E0.5,5F,5G2"
+--notes "S4.3,A,B2,C2,D2,3E0.5,5F,5G2,N3'Thanks for watching',N1"
 ```
 Or "-n".  You must pass in notes, so Speedsong knows how to speed up the video.  The notes are comma-separated.  
 A..G 
@@ -31,7 +31,10 @@ T
 You can set the tempo (as beats per minute), with the letter "T" (as if it were a note) followed by the number of beats per minute.  "T60" would set each beat to last one second.  The default tempo is 100.
 N
 This stands for "nothing."  Instead of giving it a number of beats, you give it a number of seconds.  Audio and video are played at 1x, but without any text overlay.  This is useful for an introduction or something.
-
+S
+This stands for "skip." Give it a number of seconds to skip, from the incoming video.
+'text'
+After every note, you can specify what the text display should be by enclosing the text in single quotes
 
 ```
 --notesfile "notes.txt"
