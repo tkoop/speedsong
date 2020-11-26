@@ -16,6 +16,10 @@ async function processSlice(filename, index, ext, destFolders) {
     var type = slices[index].type
     var text = slices[index].text
 
+    var audioSlicesDir = destFolders[0]
+    var videoSlicesDir = destFolders[1]
+    var videoFastDir = destFolders[2]
+    var videoTextDir = destFolders[3]
 
     var fontSize = argv["fontsize"] || "170"
     if (argv["fontfile"]) {
@@ -29,13 +33,17 @@ async function processSlice(filename, index, ext, destFolders) {
 
     if (type == 'rest') {
         // use a still image instead of video
-        var command = `ffmpeg -v 0 -ss ${start} -i ${filename} -vframes 1 -f image2 ${destFolders[0]}/slice${index}.jpg -y`
+        var command = `ffmpeg -v 0 -ss ${start} -i ${filename} -vframes 1 -f image2 ${videoSlicesDir}/slice${index}.jpg -y`
         await run(command)
-        confirmFile(`${destFolders[0]}/slice${index}.jpg`, "Didn't slice rest image.", command)
+        confirmFile(`${videoSlicesDir}/slice${index}.jpg`, "Didn't slice rest image.", command)
     } else {
-        var command = `ffmpeg -v 0 -ss ${start} -i ${filename} -to ${duration} -async 1 ${destFolders[0]}/slice${index}.${ext} -y`
+        var command = `ffmpeg -v 0 -ss ${start} -i ${audioSlicesDir}/all.wav -to ${duration} -async 1 ${audioSlicesDir}/slice${index}.wav -y`
         await run(command)
-        confirmFile(`${destFolders[0]}/slice${index}.${ext}`, "Didn't slice video.", command)
+        confirmFile(`${audioSlicesDir}/slice${index}.wav`, "Didn't slice audio.", command)
+
+        var command = `ffmpeg -v 0 -ss ${start} -i ${filename} -to ${duration} -async 1 ${videoSlicesDir}/slice${index}.${ext} -y`
+        await run(command)
+        confirmFile(`${videoSlicesDir}/slice${index}.${ext}`, "Didn't slice video.", command)
     }
 
 
@@ -46,24 +54,33 @@ async function processSlice(filename, index, ext, destFolders) {
         var displaySpeed = text || Math.round(speed * 100) / 100.0 + "x"
         var inverseSpeed = 1.0 / speed
 
-        command = `ffmpeg -v 0 -i ${destFolders[0]}/slice${index}.${ext} -filter_complex "[0:v]setpts=${inverseSpeed}*PTS[v];[0:a]asetrate=${bitRate}*${speed}[a]" -map "[v]" -map "[a]" ${destFolders[1]}/fast${index}.${ext} -y`
+        command = `ffmpeg -v 0 -i ${videoSlicesDir}/slice${index}.${ext} -filter_complex "[0:v]setpts=${inverseSpeed}*PTS[v];[0:a]asetrate=${bitRate}*${speed}[a]" -map "[v]" -map "[a]" ${videoFastDir}/fast${index}.${ext} -y`
         await run(command)
-        confirmFile(`${destFolders[1]}/fast${index}.${ext}`, "Didn't speed up note.", command)
+        confirmFile(`${videoFastDir}/fast${index}.${ext}`, "Didn't speed up note.", command)
+
+        command = `ffmpeg -v 0 -i ${audioSlicesDir}/slice${index}.wav -filter_complex "[0:a]asetrate=${bitRate}*${speed}[a]" -map "[a]" ${audioSlicesDir}/fast${index}.wav -y`
+        await run(command)
+        confirmFile(`${audioSlicesDir}/fast${index}.wav`, "Didn't speed up audio note.", command)
  
-        command = `ffmpeg -v 0 -i ${destFolders[1]}/fast${index}.${ext} -vf drawtext="${fontfile} text='${displaySpeed}': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${destFolders[2]}/text${index}.${ext} -y`
+
+        command = `ffmpeg -v 0 -i ${videoFastDir}/fast${index}.${ext} -vf drawtext="${fontfile} text='${displaySpeed}': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${videoTextDir}/text${index}.${ext} -y`
         await run(command)
-        confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't add text to note.", command)
+        confirmFile(`${videoTextDir}/text${index}.${ext}`, "Didn't add text to note.", command)
     }
 
     if (type == "nothing") {
+        command = `cp ${audioSlicesDir}/slice${index}.wav ${audioSlicesDir}/fast${index}.wav`
+        await run(command)
+        confirmFile(`${audioSlicesDir}/fast${index}.wav`, "Didn't copy nothing.", command)
+
         if (text == null) {
-            command = `cp ${destFolders[0]}/slice${index}.${ext} ${destFolders[2]}/text${index}.${ext}`
+            command = `cp ${videoSlicesDir}/slice${index}.${ext} ${videoTextDir}/text${index}.${ext}`
             await run(command)
-            confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't copy nothing.", command)
+            confirmFile(`${videoTextDir}/text${index}.${ext}`, "Didn't copy nothing.", command)
         } else {
-            command = `ffmpeg -v 0 -i ${destFolders[0]}/slice${index}.${ext} -vf drawtext="${fontfile} text='${text}': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${destFolders[2]}/text${index}.${ext} -y`
+            command = `ffmpeg -v 0 -i ${videoSlicesDir}/slice${index}.${ext} -vf drawtext="${fontfile} text='${text}': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${videoTextDir}/text${index}.${ext} -y`
             await run(command)
-            confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't add text to nothing.", command)
+            confirmFile(`${videoTextDir}/text${index}.${ext}`, "Didn't add text to nothing.", command)
         }
     }
 
@@ -71,9 +88,14 @@ async function processSlice(filename, index, ext, destFolders) {
     if (type == "rest") {
         var duration = slices[index].duration
 
-        command = `ffmpeg -loop 1 -i ${destFolders[0]}/slice${index}.jpg -f lavfi -i anullsrc -c:v copy -c:a aac -shortest -t ${duration} ${destFolders[1]}/fast${index}.${ext} -y`
+        command = `ffmpeg -loop 1 -i ${videoSlicesDir}/slice${index}.jpg -f lavfi -i anullsrc -c:v copy -c:a aac -shortest -t ${duration} ${videoFastDir}/fast${index}.${ext} -y`
         await run(command)
-        confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't add silence to rest.", command)
+        confirmFile(`${videoTextDir}/text${index}.${ext}`, "Didn't add silence to rest.", command)
+
+        command = `ffmpeg -loop 1 -f lavfi -i anullsrc -c:a aac -shortest -t ${duration} ${audioSlicesDir}/fast${index}.wav -y`
+        await run(command)
+        confirmFile(`${audioSlicesDir}/fast${index}.wav`, "Didn't add silence to audio rest.", command)
+
 
         var fontSize = argv["fontsize"] || "170"
         if (argv["fontfile"]) {
@@ -86,9 +108,9 @@ async function processSlice(filename, index, ext, destFolders) {
             text = "Pause"
         } 
         
-        command = `ffmpeg -v 0 -i ${destFolders[1]}/fast${index}.${ext} -vf drawtext="${fontfile} text='${text}': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${destFolders[2]}/text${index}.${ext} -y`
+        command = `ffmpeg -v 0 -i ${videoFastDir}/fast${index}.${ext} -vf drawtext="${fontfile} text='${text}': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9" -codec:a copy ${videoTextDir}/text${index}.${ext} -y`
         await run(command)
-        confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't add text to rest.", command)
+        confirmFile(`${videoTextDir}/text${index}.${ext}`, "Didn't add text to rest.", command)
     }
 
 }
@@ -99,7 +121,7 @@ async function processSlice(filename, index, ext, destFolders) {
 // }
 
 
-async function merge(ext, srcFolder) {
+async function merge(ext, srcFolder, audioFolder) {
     var filterList = ""
     var fileList = ""
 
@@ -116,7 +138,19 @@ async function merge(ext, srcFolder) {
     var mergeCommand = `ffmpeg -v 0 ${fileList} -filter_complex "${filterList} concat=n=${slices.length}:v=1:a=1 [v] [a]" -map "[v]" -map "[a]" ${outFile} -y`
 
     await run(mergeCommand)
-    confirmFile(`${destFolders[2]}/text${index}.${ext}`, "Didn't merge files.", mergeCommand)
+    confirmFile(`${outFile}`, "Didn't merge files.", mergeCommand)
+
+
+
+    fileList = ''
+    for(var i=0; i<slices.length; i++) {
+        fileList += ` -i ${audioFolder}/fast${i}.wav `
+    }
+
+    var command = `ffmpeg ${fileList} -filter_complex '[0:0][1:0][2:0][3:0]concat=n=${slices.length}:v=0:a=1[out]' -map '[out]' audioMerged.wav`
+    await confirmFile(`audioMerged.wav`, "Didn't merge audio files.", command)
+    
+
 
     console.log("We're all done.  See the file " + outFile)
 }
@@ -179,7 +213,7 @@ function parseSlicesFromString(notes) {
 
         if (note == "R") {
             var duration = 60.0 / tempo * beats
-            slices.push({start:runningTime, duration:duration, type:"rest", text:text})
+            slices.push({start:runningTime, duration:duration, type:"rest", text:text, multiplier:1})
         }
 
         if (note == "S") {
@@ -188,7 +222,7 @@ function parseSlicesFromString(notes) {
 
         if (note == "N") {
             var duration = parseFloat(beats)    // beats is actually number of seconds
-            slices.push({start:runningTime, duration:duration, type:"nothing", text:text})
+            slices.push({start:runningTime, duration:duration, type:"nothing", text:text, multiplier:1})
             runningTime += duration
         }
 
@@ -264,6 +298,28 @@ async function detectBitRate(file) {
     bitRate = m[1]
 }
 
+async function processAllSlices(inputFile, outputFile) {
+
+    // ffmpeg -y -t 5 -i test.mpg -ss 5 -t 5 -i test.mpg -filter_complex "[0:v]setpts=1*PTS[v1];[0:a]asetrate=44100*1[a1];[1:v]setpts=0.5*PTS[v2];[1:a]asetrate=44100*2[a2];[v1][a1][v2][a2]concat=n=2:v=1:a=1[v][a]" -map "[v]" -map "[a]" speedTwo.mpg
+
+    var inputs = ""
+    var filter = ""
+    var preconcat = ""
+    slices.forEach(function(slice, i) {
+        inputs += ` -ss ${slice.start} -t ${slice.duration} -i ${inputFile} `
+        filter += `[${i}:v]setpts=${1/slice.multiplier}*PTS[v${i}];[${i}:a]asetrate=${bitRate}*${slice.multiplier}[a${i}];`
+        preconcat += `[v${i}][a${i}]`
+    })
+
+    var command = `ffmpeg -y ${inputs} -filter_complex "${filter}${preconcat}concat=n=${slices.length}:v=1:a=1[v][a]" -map "[v]" -map "[a]" ${outputFile}`
+
+    await confirmFile(outputFile, "Big command didn't work.", command)
+    
+
+    console.log("We're all done.  See the file " + outFile)
+}
+
+
 async function main() {
     parseSlices()
 
@@ -289,10 +345,12 @@ async function main() {
         return
     }
 
+    await run("rm -rf audioSlices")
     await run("rm -rf videoSlices")
     await run("rm -rf videoFast")
     await run("rm -rf videoText")    
 
+    await run("mkdir audioSlices")
     await run("mkdir videoSlices")
     await run("mkdir videoFast")
     await run("mkdir videoText")
@@ -302,18 +360,29 @@ async function main() {
         inputFile = argv["infile"]
     }
 
+    var outFile = "out.mp4"
+    if (argv["outfile"]) {
+        outFile = argv["outfile"]
+    }
+
     console.log("calling detectbitrate")
     await detectBitRate(inputFile)
 
-    for(var i=0; i<slices.length; i++) {
-        await processSlice(inputFile, i, "mp4", ["videoSlices", "videoFast", "videoText"])
-    }
+    console.log("Detected bitrate of " + bitRate)
+
+//    await run(`ffmpeg -i ${inputFile} audioSlices/all.wav`)
+
+//    for(var i=0; i<slices.length; i++) {
+//        await processSlice(inputFile, i, "mp4", ["audioSlices", "videoSlices", "videoFast", "videoText"])
+//    }
+    await processAllSlices(inputFile, outFile)
         
-    await merge("mp4", "videoText")
+//    await merge("mp4", "videoText", "audioSlices")
 
     if (argv["nocleanup"]) {
         // don't clean up
     } else {
+        await run("rm -rf audioSlices")
         await(run("rm -rf videoSlices"))
         await(run("rm -rf videoFast"))
         await(run("rm -rf videoText"))    
