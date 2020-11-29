@@ -9,7 +9,7 @@ var bitRate = 4800
 const { exec } = require("child_process")
 const { runInContext } = require("vm")
 
-
+/*
 async function processSlice(filename, index, ext, destFolders) {
     var start = slices[index].start
     var duration = slices[index].duration
@@ -114,7 +114,7 @@ async function processSlice(filename, index, ext, destFolders) {
     }
 
 }
-
+*/
 
 //async function speedUp(index, ext, srcFolder, destFolder) {
 
@@ -313,10 +313,11 @@ async function processAllSlices(inputFile, outputFile) {
 
     var command = `ffmpeg -y ${inputs} -filter_complex "${filter}${preconcat}concat=n=${slices.length}:v=1:a=1[v][a]" -map "[v]" -map "[a]" ${outputFile}`
 
-    await confirmFile(outputFile, "Big command didn't work.", command)
+    await run(command)
     
+    confirmFile(outputFile, "Big command didn't work.", command)
 
-    console.log("We're all done.  See the file " + outFile)
+    console.log("We're all done.  See the file " + outputFile)
 }
 
 
