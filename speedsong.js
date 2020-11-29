@@ -121,6 +121,7 @@ async function processSlice(filename, index, ext, destFolders) {
 // }
 
 
+/*
 async function merge(ext, srcFolder, audioFolder) {
     var filterList = ""
     var fileList = ""
@@ -141,7 +142,6 @@ async function merge(ext, srcFolder, audioFolder) {
     confirmFile(`${outFile}`, "Didn't merge files.", mergeCommand)
 
 
-
     fileList = ''
     for(var i=0; i<slices.length; i++) {
         fileList += ` -i ${audioFolder}/fast${i}.wav `
@@ -149,11 +149,14 @@ async function merge(ext, srcFolder, audioFolder) {
 
     var command = `ffmpeg ${fileList} -filter_complex '[0:0][1:0][2:0][3:0]concat=n=${slices.length}:v=0:a=1[out]' -map '[out]' audioMerged.wav`
     await confirmFile(`audioMerged.wav`, "Didn't merge audio files.", command)
-    
+  
 
 
     console.log("We're all done.  See the file " + outFile)
 }
+*/
+
+
 
 function getMultiplier(octave, note, accidental) {
     var scale1 = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -207,28 +210,32 @@ function parseSlicesFromString(notes) {
         if (beats == "") beats = 1
         var text = m[5] || null
 
-        if (note == "T") {
+        if (note == "T") {  // "Temo"
             tempo = parseFloat(beats)   // in this case, the number is not the beat length, but the tempo in beats per minute
         }
 
-        if (note == "R") {
+        if (note == "R") {  // "Rest"
             var duration = 60.0 / tempo * beats
+            text = text || "pause"
             slices.push({start:runningTime, duration:duration, type:"rest", text:text, multiplier:1})
         }
 
-        if (note == "S") {
+        if (note == "S") {  // "Skip"
+            text = text || ""
             runningTime += parseFloat(beats)    // beats is actually number of seconds
         }
 
-        if (note == "N") {
+        if (note == "N") {  // "Nothing"
+            text = text || ""
             var duration = parseFloat(beats)    // beats is actually number of seconds
             slices.push({start:runningTime, duration:duration, type:"nothing", text:text, multiplier:1})
             runningTime += duration
         }
 
-        if (note >= "A" && note <= "G") {
+        if (note >= "A" && note <= "G") {   // Notes
             var multiplier = getMultiplier(octave, note, accidental)
             var duration = 60.0 / tempo * beats * multiplier
+            text = text || (Math.round(multiplier * 100) / 100.0 + "x")
 
             slices.push({multiplier: multiplier, start:runningTime, duration:duration, type:"note", tempo:tempo, beats:parseFloat(beats), text:text})
 
@@ -302,13 +309,24 @@ async function processAllSlices(inputFile, outputFile) {
 
     // ffmpeg -y -t 5 -i test.mpg -ss 5 -t 5 -i test.mpg -filter_complex "[0:v]setpts=1*PTS[v1];[0:a]asetrate=44100*1[a1];[1:v]setpts=0.5*PTS[v2];[1:a]asetrate=44100*2[a2];[v1][a1][v2][a2]concat=n=2:v=1:a=1[v][a]" -map "[v]" -map "[a]" speedTwo.mpg
 
+    var fontSize = argv["fontsize"] || "120"
+    if (argv["fontfile"]) {
+        var fontfile = "fontfile="+argv["fontfile"]+": "
+    } else {
+        var fontfile = "fontfile=/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf: "
+    }
+
     var inputs = ""
     var filter = ""
     var preconcat = ""
     slices.forEach(function(slice, i) {
         inputs += ` -ss ${slice.start} -t ${slice.duration} -i ${inputFile} `
-        filter += `[${i}:v]setpts=${1/slice.multiplier}*PTS[v${i}];[${i}:a]asetrate=${bitRate}*${slice.multiplier}[a${i}];`
-        preconcat += `[v${i}][a${i}]`
+        filter += `[${i}:v]setpts=${1/slice.multiplier}*PTS[v${i}];`
+        filter += `[${i}:a]asetrate=${bitRate}*${slice.multiplier}[a${i}];`
+
+        filter += `[v${i}]drawtext=${fontfile} text='${slice.text}': fontcolor=white: fontsize=${fontSize}: box=1: boxcolor=black@0.5: boxborderw=5: x=(w-text_w)/2: y=(h-text_h)*0.9[vt${i}];`
+
+        preconcat += `[vt${i}][a${i}]`
     })
 
     var command = `ffmpeg -y ${inputs} -filter_complex "${filter}${preconcat}concat=n=${slices.length}:v=1:a=1[v][a]" -map "[v]" -map "[a]" ${outputFile}`
