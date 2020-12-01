@@ -23,18 +23,21 @@ It will create a file called out.mp4
 --notes "S4.3,A,B2,C2,D2,3E0.5,5F,5G2,N3'Thanks for watching',N1"
 ```
 Or "-n".  You must pass in notes, so Speedsong knows how to speed up the video.  The notes are comma-separated.  
-A..G 
+
+A..G  
 The octave of the note, according to Scientific Pitch Notation, prescedes the note name.  The default is 4.  Middle would be "4C", or just "C".  One note lower would be "3B".  This notation doesn't know or care about quarter notes or eighth notes.  It only cares about beats.  The number of beats per note is specified after the letter.  If you want a beat to be quarter notes, then a half note is "C2" and a quarter note is "C1". One is the default number of beats, so you can leave it out.  An eighth note would be "C0.5".  
-R
-This is a rest.  You can add a number of beats after it, just like A..G.  The video will be muted for this many beats.
-T
-You can set the tempo (as beats per minute), with the letter "T" (as if it were a note) followed by the number of beats per minute.  "T60" would set each beat to last one second.  The default tempo is 100.
-N
-This stands for "nothing."  Instead of giving it a number of beats, you give it a number of seconds.  Audio and video are played at 1x, but without any text overlay.  This is useful for an introduction or something.
-S
-This stands for "skip." Give it a number of seconds to skip, from the incoming video.
-'text'
-After every note, you can specify what the text display should be by enclosing the text in single quotes
+
+T  
+You can set the tempo (as beats per minute), with the letter "T" (as if it were a note) followed by the number of beats per minute.  "T60" would set each beat to last one second.  The default tempo is 100.  
+
+N  
+This stands for "nothing."  Instead of giving it a number of beats, you give it a number of seconds.  Audio and video are played at 1x, but without any text overlay.  This is useful for an introduction or something.  
+
+S  
+This stands for "skip." Give it a number of seconds to skip, from the incoming video.  
+
+'text'  
+After every note (or "nothing"), you can specify what the text display should be by enclosing the text in single quotes
 
 ```
 --notesfile "notes.txt"
