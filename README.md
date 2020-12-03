@@ -3,12 +3,12 @@ Speed up a video in slices, so that it plays a song.
 
 # How to install it
 ```
-sudo apt-get install ffmpeg
+sudo apt install ffmpeg nodejs
 git clone https://github.com/tkoop/speedsong.git
 cd speedsong
 ```
 
-  
+
 # How to use it
 Place a video here (in the "speedsong" directory) called in.mp4
 ```
@@ -85,6 +85,3 @@ The size of the font used on the text overlay.  Defaults to 170.
 --fontfile
 ```
 The font file to use for the text overlay.  Defaults to /usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf
-
-
-
